@@ -31,6 +31,19 @@ for arquivo in \
     fi
 done
 
+# NFS-e do Padrão Nacional: a r48805 (ACBR-9969) passou a ler finNFSe direto de infDPS, onde a tag só existe
+# a partir da NT 009 v1.01. No layout anterior a leitura vazia gerava "Valor string inválido para TfinNFSe"
+# depois da nota autorizada; lê somente quando a tag vier preenchida (o valor do IBSCBS já foi lido antes).
+echo "Lendo finNFSe de infDPS somente quando presente (Padrão Nacional)..."
+perl -0777 -pi -e '
+    $n += s{^(?<!then\r\n)(?<!then\n)(\h*)(NFSe\.IBSCBS\.finNFSe := StrTofinNFSe\(ObterConteudo\(AuxNode\.Childrens\.FindAnyNs\(\x27finNFSe\x27\), tcStr\)\);)(\r?\n)}
+           {$1if ObterConteudo(AuxNode.Childrens.FindAnyNs(\x27finNFSe\x27), tcStr) <> \x27\x27 then$3$1  $2$3}mg;
+    END { exit($n == 1 ? 0 : 1) }
+' "$RAIZ/Fontes/ACBrDFe/ACBrNFSeX/Provedores/PadraoNacional.LerXml.pas" || {
+    echo "Ajuste do finNFSe não aplicado em PadraoNacional.LerXml.pas: revisar se o ACBr mudou ou corrigiu a leitura." >&2
+    exit 1
+}
+
 svn info --show-item last-changed-revision -r "$REVISAO" "$ACBR_URL" > "$RAIZ/REVISAO"
 echo
 echo "ACBr trunk2 r$(cat "$RAIZ/REVISAO") em Fontes/ e Schemas/. Revise com git status/diff e commite."

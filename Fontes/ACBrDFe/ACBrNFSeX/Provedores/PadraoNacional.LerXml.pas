@@ -882,7 +882,8 @@ begin
     // Reforma Tributária
     LerXMLIBSCBSDPS(AuxNode.Childrens.FindAnyNs('IBSCBS'), NFSe.IBSCBS);
 
-    NFSe.IBSCBS.finNFSe := StrTofinNFSe(ObterConteudo(AuxNode.Childrens.FindAnyNs('finNFSe'), tcStr));
+    if ObterConteudo(AuxNode.Childrens.FindAnyNs('finNFSe'), tcStr) <> '' then
+      NFSe.IBSCBS.finNFSe := StrTofinNFSe(ObterConteudo(AuxNode.Childrens.FindAnyNs('finNFSe'), tcStr));
   end;
 end;
 

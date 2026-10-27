@@ -6,7 +6,10 @@ Fontes e schemas do [Projeto ACBr](https://projetoacbr.com.br/) (SVN `trunk2`), 
 - `Schemas/` — `trunk2/Exemplos/ACBrDFe/Schemas`
 - `Bibliotecas/` — bibliotecas nativas do DF-e, por plataforma (`x86_64`, `aarch64`, `win64`): `libsagui` (servidor HTTP do Brook) e, no Windows, as DLLs do OpenSSL, libxml2, libxslt e libiconv. Não vêm do ACBr e o `atualiza.sh` não mexe nelas.
 
-Ajuste local: o DANFE da NF-e e da NFC-e (`ACBrNFeDANFeFPDF.pas`, `ACBrNFCeDANFeFPDF.pas`) usa Arial no lugar de Times.
+Ajustes locais, aplicados pelo `atualiza.sh`:
+
+- o DANFE da NF-e e da NFC-e (`ACBrNFeDANFeFPDF.pas`, `ACBrNFCeDANFeFPDF.pas`) usa Arial no lugar de Times;
+- a NFS-e do Padrão Nacional (`PadraoNacional.LerXml.pas`) só lê `finNFSe` de `infDPS` quando a tag vem preenchida. Desde a r48805 (ACBR-9969) a leitura sem a tag, comum no layout anterior à NT 009 v1.01, gerava `Valor string inválido para TfinNFSe` depois da nota autorizada. O script falha se o trecho original não for encontrado: nesse caso, conferir se o ACBr corrigiu a leitura e remover o ajuste.
 
 ## Uso no monorepo
 
