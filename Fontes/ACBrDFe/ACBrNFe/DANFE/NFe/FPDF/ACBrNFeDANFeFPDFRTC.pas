@@ -1285,22 +1285,47 @@ begin
   FX[cColunasItens] := Width;
 end;
 
-// Boa Gestao: IS e IPI so aparecem no item quando tem base, aliquota ou valor; ICMS e IBS/CBS aparecem sempre,
-// zero incluido. O tributo omitido fica com rotulo vazio.
-procedure OmitirTributosZeradosRTC(var AItem: TACBrNFeDANFeRTCItem);
+// Boa Gestao: nas linhas dos itens, ICMS / CBS e IBS UF / IBS MUN sempre (zero incluido); IPI / IS so quando tem
+// base, aliquota ou valor. Bases na ordem ICMS, IBS/CBS, IPI, IS. O tributo omitido fica com rotulo vazio.
+procedure OrganizarTributosRTC(var AItem: TACBrNFeDANFeRTCItem);
+var
+  LBaseIPI, LBaseIS, LAliqIPI, LAliqIS, LValorIPI, LValorIS, LVazio: TACBrNFeDANFeRTCTributo;
+  I: Integer;
 begin
-  if (AItem.Bases[2].Valor = 0) and (AItem.Aliquotas[2, 1].Valor = 0) and (AItem.Valores[2, 1].Valor = 0) then
+  LBaseIS := AItem.Bases[2];
+  LBaseIPI := AItem.Bases[3];
+  LAliqIPI := AItem.Aliquotas[1, 1];
+  LAliqIS := AItem.Aliquotas[2, 1];
+  LValorIPI := AItem.Valores[1, 1];
+  LValorIS := AItem.Valores[2, 1];
+
+  AItem.Aliquotas[1, 1] := AItem.Aliquotas[2, 0];
+  AItem.Valores[1, 1] := AItem.Valores[2, 0];
+
+  LVazio.Rotulo := '';
+  LVazio.Valor := 0;
+  AItem.Bases[2] := LVazio;
+  AItem.Bases[3] := LVazio;
+  for I := 0 to 1 do
   begin
-    AItem.Bases[2].Rotulo := '';
-    AItem.Aliquotas[2, 1].Rotulo := '';
-    AItem.Valores[2, 1].Rotulo := '';
+    AItem.Aliquotas[2, I] := LVazio;
+    AItem.Valores[2, I] := LVazio;
   end;
 
-  if (AItem.Bases[3].Valor = 0) and (AItem.Aliquotas[1, 1].Valor = 0) and (AItem.Valores[1, 1].Valor = 0) then
+  I := 0;
+  if (LBaseIPI.Valor <> 0) or (LAliqIPI.Valor <> 0) or (LValorIPI.Valor <> 0) then
   begin
-    AItem.Bases[3].Rotulo := '';
-    AItem.Aliquotas[1, 1].Rotulo := '';
-    AItem.Valores[1, 1].Rotulo := '';
+    AItem.Bases[2 + I] := LBaseIPI;
+    AItem.Aliquotas[2, I] := LAliqIPI;
+    AItem.Valores[2, I] := LValorIPI;
+    Inc(I);
+  end;
+
+  if (LBaseIS.Valor <> 0) or (LAliqIS.Valor <> 0) or (LValorIS.Valor <> 0) then
+  begin
+    AItem.Bases[2 + I] := LBaseIS;
+    AItem.Aliquotas[2, I] := LAliqIS;
+    AItem.Valores[2, I] := LValorIS;
   end;
 end;
 
@@ -1308,12 +1333,11 @@ function LinhasTributosRTC(AItem: TACBrNFeDANFeRTCItem): Integer;
 var
   I: Integer;
 begin
-  OmitirTributosZeradosRTC(AItem);
+  OrganizarTributosRTC(AItem);
   Result := 0;
   for I := Low(AItem.Bases) to High(AItem.Bases) do
     if AItem.Bases[I].Rotulo <> '' then
       Inc(Result);
-  Result := Max(Result, High(TACBrNFeDANFeRTCPares) + 1);
 end;
 
 procedure TBlocoItensRTC.PrepararItem(const APDF: IFPDF; AIndex: Integer; out AItem: TItemDesenhoRTC);
@@ -1395,6 +1419,9 @@ begin
 
   for I := Low(APares) to High(APares) do
   begin
+    if APares[I, 0].Rotulo = '' then
+      Continue;
+
     for J := 0 to 1 do
     begin
       if AAliquota then
@@ -1424,7 +1451,7 @@ var
 begin
   LRTC := Report.RTC;
   LItem := LRTC.Item(AIndex);
-  OmitirTributosZeradosRTC(LItem);
+  OrganizarTributosRTC(LItem);
   LY := AY + 0.5;
   LW := FX[1] - FX[0] - 1;
 

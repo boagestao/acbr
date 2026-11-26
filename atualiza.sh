@@ -66,29 +66,55 @@ perl -0777 -pi -e '
     exit 1
 }
 
-# Nos itens do DANFE RTC, IS e IPI só aparecem quando têm base, alíquota ou valor (o IPI só a indústria destaca); ICMS
-# e IBS/CBS aparecem sempre, zero incluído. A coluna das bases sobe as linhas seguintes, o par "IBS UF / IPI" e o par
-# "IBS MUN / IS" ficam só com o IBS, e o item perde a quarta linha quando IS e IPI não aparecem.
-echo "Omitindo IS e IPI zerados nos itens do DANFE RTC..."
+# Nas linhas dos itens do DANFE RTC, as colunas de alíquotas e de valores ficam ICMS / CBS na primeira linha e IBS UF /
+# IBS MUN na segunda, sempre (zero incluído); IPI / IS na terceira, cada um só quando tem base, alíquota ou valor (o IPI
+# só a indústria destaca). A coluna das bases segue a mesma ordem (ICMS, IBS/CBS, IPI, IS) e sobe as linhas seguintes;
+# sem IPI e sem IS, o item fica com duas linhas de tributos.
+echo "Organizando os tributos dos itens do DANFE RTC..."
 read -r -d '' AJUSTE_TRIBUTOS_ITEM <<'PERL' || true
 my $nl = /\r\n/ ? "\r\n" : "\n";
 my $aux = <<'PAS';
-// Boa Gestao: IS e IPI so aparecem no item quando tem base, aliquota ou valor; ICMS e IBS/CBS aparecem sempre,
-// zero incluido. O tributo omitido fica com rotulo vazio.
-procedure OmitirTributosZeradosRTC(var AItem: TACBrNFeDANFeRTCItem);
+// Boa Gestao: nas linhas dos itens, ICMS / CBS e IBS UF / IBS MUN sempre (zero incluido); IPI / IS so quando tem
+// base, aliquota ou valor. Bases na ordem ICMS, IBS/CBS, IPI, IS. O tributo omitido fica com rotulo vazio.
+procedure OrganizarTributosRTC(var AItem: TACBrNFeDANFeRTCItem);
+var
+  LBaseIPI, LBaseIS, LAliqIPI, LAliqIS, LValorIPI, LValorIS, LVazio: TACBrNFeDANFeRTCTributo;
+  I: Integer;
 begin
-  if (AItem.Bases[2].Valor = 0) and (AItem.Aliquotas[2, 1].Valor = 0) and (AItem.Valores[2, 1].Valor = 0) then
+  LBaseIS := AItem.Bases[2];
+  LBaseIPI := AItem.Bases[3];
+  LAliqIPI := AItem.Aliquotas[1, 1];
+  LAliqIS := AItem.Aliquotas[2, 1];
+  LValorIPI := AItem.Valores[1, 1];
+  LValorIS := AItem.Valores[2, 1];
+
+  AItem.Aliquotas[1, 1] := AItem.Aliquotas[2, 0];
+  AItem.Valores[1, 1] := AItem.Valores[2, 0];
+
+  LVazio.Rotulo := '';
+  LVazio.Valor := 0;
+  AItem.Bases[2] := LVazio;
+  AItem.Bases[3] := LVazio;
+  for I := 0 to 1 do
   begin
-    AItem.Bases[2].Rotulo := '';
-    AItem.Aliquotas[2, 1].Rotulo := '';
-    AItem.Valores[2, 1].Rotulo := '';
+    AItem.Aliquotas[2, I] := LVazio;
+    AItem.Valores[2, I] := LVazio;
   end;
 
-  if (AItem.Bases[3].Valor = 0) and (AItem.Aliquotas[1, 1].Valor = 0) and (AItem.Valores[1, 1].Valor = 0) then
+  I := 0;
+  if (LBaseIPI.Valor <> 0) or (LAliqIPI.Valor <> 0) or (LValorIPI.Valor <> 0) then
   begin
-    AItem.Bases[3].Rotulo := '';
-    AItem.Aliquotas[1, 1].Rotulo := '';
-    AItem.Valores[1, 1].Rotulo := '';
+    AItem.Bases[2 + I] := LBaseIPI;
+    AItem.Aliquotas[2, I] := LAliqIPI;
+    AItem.Valores[2, I] := LValorIPI;
+    Inc(I);
+  end;
+
+  if (LBaseIS.Valor <> 0) or (LAliqIS.Valor <> 0) or (LValorIS.Valor <> 0) then
+  begin
+    AItem.Bases[2 + I] := LBaseIS;
+    AItem.Aliquotas[2, I] := LAliqIS;
+    AItem.Valores[2, I] := LValorIS;
   end;
 end;
 
@@ -96,12 +122,11 @@ function LinhasTributosRTC(AItem: TACBrNFeDANFeRTCItem): Integer;
 var
   I: Integer;
 begin
-  OmitirTributosZeradosRTC(AItem);
+  OrganizarTributosRTC(AItem);
   Result := 0;
   for I := Low(AItem.Bases) to High(AItem.Bases) do
     if AItem.Bases[I].Rotulo <> '' then
       Inc(Result);
-  Result := Max(Result, High(TACBrNFeDANFeRTCPares) + 1);
 end;
 
 PAS
@@ -109,16 +134,17 @@ $aux =~ s/\n/$nl/g;
 $n1 += s{^(procedure TBlocoItensRTC\.PrepararItem\()}{$aux$1}m;
 $n2 += s{LAlturaTributos := \(High\(TACBrNFeDANFeRTCBases\) \+ 1\) \* LAltura55;}{LAlturaTributos := LinhasTributosRTC(Report.RTC.Item(AIndex)) * LAltura55;};
 $n3 += s{(procedure TBlocoItensRTC\.DesenharItem\([^)]*\);\r?\nvar\r?\n\h*)I: Integer;}{${1}I, J: Integer;};
-$n4 += s{^(\h*)(LItem := LRTC\.Item\(AIndex\);)(\r?\n)}{$1$2$3$1OmitirTributosZeradosRTC(LItem);$3}m;
+$n4 += s{^(\h*)(LItem := LRTC\.Item\(AIndex\);)(\r?\n)}{$1$2$3$1OrganizarTributosRTC(LItem);$3}m;
 $n5 += s{^(\h*)for I := Low\(LItem\.Bases\) to High\(LItem\.Bases\) do\r?\n\h*(APDF\.TextBox\(FX\[5\] \+ 0\.5, LY \+ )\(I \* LAltura\)(, LW, LAltura,)\r?\n\h*(Pontilhado\(APDF, LItem\.Bases\[I\]\.Rotulo, LRTC\.FormatarValor\(LItem\.Bases\[I\]\.Valor\), LW\), 'T', 'L',)\r?\n\h*(False, False, False\);)\r?\n}{
     join($nl, "$1J := 0;", "$1for I := Low(LItem.Bases) to High(LItem.Bases) do", "$1  if LItem.Bases[I].Rotulo <> '' then",
       "$1  begin", "$1    $2(J * LAltura)$3", "$1      $4", "$1      $5", "$1    Inc(J);", "$1  end;") . $nl
 }me;
-$n6 += s{^(\h*)(LTexto := LValores\[0\]) (\+ cSeparador \+ LValores\[1\];)(\r?\n)}{$1if APares[I, 1].Rotulo = '' then$4$1  $2$4$1else$4$1  $2 $3$4}m;
-END { exit(($n1 == 1 && $n2 == 1 && $n3 == 1 && $n4 == 1 && $n5 == 1 && $n6 == 1) ? 0 : 1) }
+$n6 += s{^(\h*)(for I := Low\(APares\) to High\(APares\) do\r?\n\h*begin)(\r?\n)}{$1$2$3$1  if APares[I, 0].Rotulo = '' then$3$1    Continue;$3$3}m;
+$n7 += s{^(\h*)(LTexto := LValores\[0\]) (\+ cSeparador \+ LValores\[1\];)(\r?\n)}{$1if APares[I, 1].Rotulo = '' then$4$1  $2$4$1else$4$1  $2 $3$4}m;
+END { exit(($n1 == 1 && $n2 == 1 && $n3 == 1 && $n4 == 1 && $n5 == 1 && $n6 == 1 && $n7 == 1) ? 0 : 1) }
 PERL
 perl -0777 -pi -e "$AJUSTE_TRIBUTOS_ITEM" "$RTC" || {
-    echo "Omissão de IS e IPI zerados não aplicada em ACBrNFeDANFeFPDFRTC.pas: revisar se o ACBr mudou o quadro dos itens." >&2
+    echo "Organização dos tributos dos itens não aplicada em ACBrNFeDANFeFPDFRTC.pas: revisar se o ACBr mudou o quadro dos itens." >&2
     exit 1
 }
 
