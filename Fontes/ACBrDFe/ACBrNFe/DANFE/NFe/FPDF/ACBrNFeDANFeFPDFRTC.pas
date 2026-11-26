@@ -1285,6 +1285,37 @@ begin
   FX[cColunasItens] := Width;
 end;
 
+// Boa Gestao: IS e IPI so aparecem no item quando tem base, aliquota ou valor; ICMS e IBS/CBS aparecem sempre,
+// zero incluido. O tributo omitido fica com rotulo vazio.
+procedure OmitirTributosZeradosRTC(var AItem: TACBrNFeDANFeRTCItem);
+begin
+  if (AItem.Bases[2].Valor = 0) and (AItem.Aliquotas[2, 1].Valor = 0) and (AItem.Valores[2, 1].Valor = 0) then
+  begin
+    AItem.Bases[2].Rotulo := '';
+    AItem.Aliquotas[2, 1].Rotulo := '';
+    AItem.Valores[2, 1].Rotulo := '';
+  end;
+
+  if (AItem.Bases[3].Valor = 0) and (AItem.Aliquotas[1, 1].Valor = 0) and (AItem.Valores[1, 1].Valor = 0) then
+  begin
+    AItem.Bases[3].Rotulo := '';
+    AItem.Aliquotas[1, 1].Rotulo := '';
+    AItem.Valores[1, 1].Rotulo := '';
+  end;
+end;
+
+function LinhasTributosRTC(AItem: TACBrNFeDANFeRTCItem): Integer;
+var
+  I: Integer;
+begin
+  OmitirTributosZeradosRTC(AItem);
+  Result := 0;
+  for I := Low(AItem.Bases) to High(AItem.Bases) do
+    if AItem.Bases[I].Rotulo <> '' then
+      Inc(Result);
+  Result := Max(Result, High(TACBrNFeDANFeRTCPares) + 1);
+end;
+
 procedure TBlocoItensRTC.PrepararItem(const APDF: IFPDF; AIndex: Integer; out AItem: TItemDesenhoRTC);
 var
   LDet: TDetCollectionItem;
@@ -1344,7 +1375,7 @@ begin
   LAlturaDescricao := (Length(AItem.Descricao) * LAltura7) +
     ((Length(AItem.Adicional) + Ord(AItem.Classificacao <> '')) * LAltura6);
   LAlturaQuantidade := (Length(AItem.Quantidades) + Length(AItem.Unidades)) * LAltura6;
-  LAlturaTributos := (High(TACBrNFeDANFeRTCBases) + 1) * LAltura55;
+  LAlturaTributos := LinhasTributosRTC(Report.RTC.Item(AIndex)) * LAltura55;
 
   AItem.Altura := Max(LAlturaDescricao, Max(LAlturaQuantidade, LAlturaTributos)) + 1.5;
 end;
@@ -1374,7 +1405,10 @@ begin
       LValores[J] := Pontilhado(APDF, APares[I, J].Rotulo, LValores[J], LWPar);
     end;
 
-    LTexto := LValores[0] + cSeparador + LValores[1];
+    if APares[I, 1].Rotulo = '' then
+      LTexto := LValores[0]
+    else
+      LTexto := LValores[0] + cSeparador + LValores[1];
     APDF.TextBox(FX[AColuna] + 0.5, AY + (I * AAlturaLinha), LW, AAlturaLinha, LTexto, 'T', 'L',
       False, False, False);
   end;
@@ -1383,13 +1417,14 @@ end;
 procedure TBlocoItensRTC.DesenharItem(const APDF: IFPDF; AIndex: Integer; const AItem: TItemDesenhoRTC;
   AY: Double);
 var
-  I: Integer;
+  I, J: Integer;
   LY, LW, LAltura: Double;
   LItem: TACBrNFeDANFeRTCItem;
   LRTC: TACBrNFeDANFeRTC;
 begin
   LRTC := Report.RTC;
   LItem := LRTC.Item(AIndex);
+  OmitirTributosZeradosRTC(LItem);
   LY := AY + 0.5;
   LW := FX[1] - FX[0] - 1;
 
@@ -1421,10 +1456,15 @@ begin
 
   LAltura := AlturaLinhaTexto(APDF, 5.5);
   LW := FX[6] - FX[5] - 1;
+  J := 0;
   for I := Low(LItem.Bases) to High(LItem.Bases) do
-    APDF.TextBox(FX[5] + 0.5, LY + (I * LAltura), LW, LAltura,
-      Pontilhado(APDF, LItem.Bases[I].Rotulo, LRTC.FormatarValor(LItem.Bases[I].Valor), LW), 'T', 'L',
-      False, False, False);
+    if LItem.Bases[I].Rotulo <> '' then
+    begin
+      APDF.TextBox(FX[5] + 0.5, LY + (J * LAltura), LW, LAltura,
+        Pontilhado(APDF, LItem.Bases[I].Rotulo, LRTC.FormatarValor(LItem.Bases[I].Valor), LW), 'T', 'L',
+        False, False, False);
+      Inc(J);
+    end;
 
   DesenharPares(APDF, 6, LY, LAltura, LItem.Aliquotas, True);
   DesenharPares(APDF, 7, LY, LAltura, LItem.Valores, False);
