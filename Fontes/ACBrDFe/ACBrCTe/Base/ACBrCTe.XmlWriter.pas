@@ -87,6 +87,7 @@ type
     function Gerar_Endereco(const xTag: string; Endereco: TEndereco): TACBrXmlNode;
 
     function Gerar_Ide: TACBrXmlNode;
+    function Gerar_gMultaJuros(gMultaJuros: TgMultaJuros): TACBrXmlNode;
     function Gerar_Compl: TACBrXmlNode;
     function Gerar_Emit: TACBrXmlNode;
     function Gerar_EnderEmit: TACBrXmlNode;
@@ -752,7 +753,8 @@ begin
     end;
   end;
 
-  if CTe.Ide.tpEmis = teFSDA then
+  // NT 2026.004: tpEmis=2 (Contingencia Offline) exige dhCont/xJust
+  if CTe.Ide.tpEmis in [teFSDA, teContingencia] then
   begin
     if VersaoDF >= ve300 then
       Result.AppendChild(AddNode(tcStr, '#057', 'dhCont', 25, 25, 1,
@@ -774,6 +776,18 @@ begin
                                 tpPagAntToStr(CTe.Ide.tpPagAnt), DSC_TPPAGANT));
 
   Result.AppendChild(Gerar_gPagAntecipadoIde(CTe.ide.gPagAntecipado));
+
+  if CTe.Ide.gMultaJuros.chCTeRef <> '' then
+    Result.AppendChild(Gerar_gMultaJuros(CTe.Ide.gMultaJuros));
+end;
+
+function TCTeXmlWriter.Gerar_gMultaJuros(
+  gMultaJuros: TgMultaJuros): TACBrXmlNode;
+begin
+  Result := FDocument.CreateElement('gMultaJuros');
+
+  Result.AppendChild(AddNode(tcStr, '#25', 'chCTeRef', 44, 44, 1,
+                                           gMultaJuros.chCTeRef, DSC_CHCTEREF));
 end;
 
 function TCTeXmlWriter.Gerar_Compl: TACBrXmlNode;
@@ -992,6 +1006,10 @@ begin
 
   Result.AppendChild(AddNode(tcStr, '#104', 'ISUFEmit', 8, 9, 0,
                                               CTe.Emit.ISUFEmit, DSC_ISUFEMIT));
+
+  if ModeloDF in [moCTeSimp, moCTe, moCTeOS] then
+    Result.AppendChild(AddNode(tcStr, '#104', 'tpRegimeIBSCBS', 1, 1, 0,
+             tpRegimeIBSCBSToStr(CTe.Emit.tpRegimeIBSCBS), DSC_TPREGIMEIBSCBS));
 end;
 
 function TCTeXmlWriter.Gerar_EnderEmit: TACBrXmlNode;
@@ -1428,14 +1446,14 @@ begin
 
   // Reforma Tributária
   if (VersaoDF >= ve400) and (CTe.imp.IBSCBS.CST <> cstNenhum) and
-     (CTe.imp.IBSCBS.cClassTrib <> '') then
-  begin
+     (CTe.imp.IBSCBS.cClassTrib <> '') and (ModeloDF <> moCTeSimp) then
     Result.AppendChild(Gerar_IBSCBS(CTe.imp.IBSCBS));
 
-    if (ModeloDF in [moCTe, moCTeOS]) then
-      Result.AppendChild(AddNode(tcDe2, '#250', 'vTotDFe', 1, 15, 1,
+  // Sem o grupo IBSCBS o vTotDFe continua sendo aceito pelo schema (0-1) e
+  // a SEFAZ compara o vRec com ele (rejeicao 531 quando nao informado)
+  if (VersaoDF >= ve400) and (ModeloDF in [moCTe, moCTeOS]) then
+    Result.AppendChild(AddNode(tcDe2, '#250', 'vTotDFe', 1, 15, 0,
                                                  CTe.Imp.vTotDFe, DSC_VTOTDFE));
-  end;
 end;
 
 function TCTeXmlWriter.Gerar_ICMS: TACBrXmlNode;
@@ -3159,7 +3177,7 @@ begin
       Result[i].AppendChild(nodeArray[j]);
     end;
 
-    Gerar_IBSCBS(CTe.det[i].IBSCBS);
+    Result[i].AppendChild(Gerar_IBSCBS(CTe.det[i].IBSCBS));
 
     nodeArray := Gerar_InfNFe(CTe.det[i].InfNFe);
 

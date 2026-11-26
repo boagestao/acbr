@@ -50,7 +50,7 @@ uses
   ACBrNFe.AdmCSC,
   ACBrNFe.RetAdmCSC,
   ACBrNFe.RetConsSit,
-  pcnConversaoNFe,
+  ACBrNFe.Conversao,
   ACBrNFe.Consts,
   ACBrNFe.EnvEvento,
   ACBrNFe.RetEnvEvento,
@@ -85,7 +85,7 @@ type
     function GerarVersaoDadosSoap: String; override;
     procedure EnviarDados; override;
     procedure FinalizarServico; override;
-    function ModeloDFe(const Chave: string): TpcnModeloDF;
+    function ModeloDFe(const Chave: string): TModeloDF;
 
   public
     constructor Create(AOwner: TACBrDFe); override;
@@ -150,7 +150,7 @@ type
     FProtocolo: string;
     FSincrono: Boolean;
     FZipado: Boolean;
-    FVersaoDF: TpcnVersaoDF;
+    FVersaoDF: TVersaoDF;
 
     FNFeRetornoSincrono: TRetConsSitNFe;
     FNFeRetorno: TretEnvDFe;
@@ -204,7 +204,7 @@ type
     FxMotivo: String;
     FcMsg: integer;
     FxMsg: String;
-    FVersaoDF: TpcnVersaoDF;
+    FVersaoDF: TVersaoDF;
 
     FNFeRetorno: TRetConsReciDFe;
 
@@ -258,7 +258,7 @@ type
     FcUF: integer;
     FxMsg: String;
     FcMsg: integer;
-    FVersaoDF: TpcnVersaoDF;
+    FVersaoDF: TVersaoDF;
 
     FNFeRetorno: TRetConsReciDFe;
   protected
@@ -497,7 +497,7 @@ type
   TAdministrarCSCNFCe = class(TNFeWebService)
   private
     FRaizCNPJ: String;
-    FindOp: TpcnIndOperacao;
+    FindOp: TIndOperacao;
     FIdCSC: integer;
     FCodigoCSC: String;
 
@@ -516,7 +516,7 @@ type
     procedure Clear; override;
 
     property RaizCNPJ: String read FRaizCNPJ write FRaizCNPJ;
-    property indOP: TpcnIndOperacao read FindOP write FindOP;
+    property indOP: TIndOperacao read FindOP write FindOP;
     property idCsc: integer read FidCsc write FidCsc;
     property codigoCsc: String read FcodigoCsc write FcodigoCsc;
 
@@ -689,8 +689,10 @@ uses
   ACBrDFeComum.RetConsStatServ,
   ACBrDFeComum.ConsReciDFe,
   ACBrNFe.ConsSit,
-  ACBrNFe.Inut,
-  ACBrNFe.RetInut,
+//  ACBrNFe.Inut,
+//  ACBrNFe.RetInut,
+  ACBrDFeComum.Inut,
+  ACBrDFeComum.RetInut,
   ACBrIntegrador;
 
 { TNFeWebService }
@@ -737,7 +739,7 @@ begin
   TACBrNFe(FPDFeOwner).SetStatus(FPStatus);
 end;
 
-function TNFeWebService.ModeloDFe(const Chave: string): TpcnModeloDF;
+function TNFeWebService.ModeloDFe(const Chave: string): TModeloDF;
 var
   Ok: Boolean;
   xChave: string;
@@ -915,7 +917,7 @@ begin
 
   NFeRetorno := TRetConsStatServ.Create('');
   try
-    NFeRetorno.XmlRetorno := FPRetWS; // ParseText(FPRetWS);
+    NFeRetorno.XmlRetorno := FPRetWS;
     NFeRetorno.LerXml;
 
     Fversao := NFeRetorno.versao;
@@ -1080,7 +1082,7 @@ procedure TNFeRecepcao.DefinirURL;
 var
   xUF: String;
   VerServ: Double;
-  Modelo: TpcnModeloDF;
+  Modelo: TModeloDF;
   ok: Boolean;
   Emissao: TACBrTipoEmissao;
 begin
@@ -1117,6 +1119,10 @@ begin
   else
     xUF := CodigoUFparaUF(FcUF);
   end;
+
+  if FNotasFiscais.Count > 0 then
+    if FNotasFiscais.Items[0].NFe.Emit.IE = '' then
+      xUF := 'SVRS';
 
   TACBrNFe(FPDFeOwner).LerServicoDeParams(
     ModeloDFToPrefixo(Modelo),
@@ -1241,7 +1247,7 @@ begin
     else
       AXML := FPRetWS;
 
-    FNFeRetornoSincrono.XmlRetorno := AXML; // ParseText(AXML);
+    FNFeRetornoSincrono.XmlRetorno := AXML;
     FNFeRetornoSincrono.LerXml;
 
     Fversao := FNFeRetornoSincrono.versao;
@@ -1342,7 +1348,7 @@ begin
   end
   else
   begin
-    FNFeRetorno .XmlRetorno := FPRetWS; // ParseText(FPRetWS);
+    FNFeRetorno .XmlRetorno := FPRetWS;
     FNFeRetorno.LerXml;
 
     Fversao := FNFeRetorno.versao;
@@ -1547,7 +1553,7 @@ var
   xUF: String;
   VerServ: Double;
   ok: Boolean;
-  Modelo: TpcnModeloDF;
+  Modelo: TModeloDF;
   Emissao: TACBrTipoEmissao;
 begin
   if FNotasFiscais.Count > 0 then    // Tem NFe ? Se SIM, use as informações do XML
@@ -1657,7 +1663,8 @@ begin
   VerificarSemResposta;
 
   //A função UTF8ToNativeString deve ser removida quando for refatorado para usar ACBrXMLDocument
-  FNFeRetorno.XmlRetorno := UTF8ToNativeString(ParseText(FPRetWS));
+  // Mantem UTF8: LoadFromXml usa AnsiString (UTF8ToNativeString gerava bytes CP1252)
+  FNFeRetorno.XmlRetorno := FPRetWS; // Não usar ParserText FPRetWS já tem que estar em UTF8
   FNFeRetorno.LerXML;
 
   Fversao := FNFeRetorno.versao;
@@ -1924,7 +1931,7 @@ var
   xUF: String;
   VerServ: Double;
   ok: Boolean;
-  Modelo: TpcnModeloDF;
+  Modelo: TModeloDF;
   Emissao: TACBrTipoEmissao;
 begin
   if FNotasFiscais.Count > 0 then    // Tem NFe ? Se SIM, use as informações do XML
@@ -2009,7 +2016,7 @@ begin
 
   VerificarSemResposta;
 
-  FNFeRetorno.XmlRetorno := DecodeHTMLEntities(FPRetWS);
+  FNFeRetorno.XmlRetorno := FPRetWS;
   FNFeRetorno.LerXML;
 
   Fversao := FNFeRetorno.versao;
@@ -2274,7 +2281,7 @@ begin
 
     VerificarSemResposta;
 
-    NFeRetorno.XmlRetorno := FPRetWS; // ParseText(FPRetWS);
+    NFeRetorno.XmlRetorno := FPRetWS;
     NFeRetorno.LerXML;
 
     NFCancelada := False;
@@ -2766,9 +2773,9 @@ end;
 
 procedure TNFeInutilizacao.DefinirDadosMsg;
 var
-  InutNFe: TinutNFe;
+  InutNFe: TinutDFe;
 begin
-  InutNFe := TinutNFe.Create;
+  InutNFe := TinutDFe.Create(NAME_SPACE, 'NFe', 'nNFIni', 'nNFFin');
   try
     InutNFe.tpAmb  := FPConfiguracoesNFe.WebServices.Ambiente;
     InutNFe.cUF    := FPConfiguracoesNFe.WebServices.UFCodigo;
@@ -2776,8 +2783,8 @@ begin
     InutNFe.CNPJ   := FCNPJ;
     InutNFe.modelo := FModelo;
     InutNFe.serie  := FSerie;
-    InutNFe.nNFIni := FNumeroInicial;
-    InutNFe.nNFFin := FNumeroFinal;
+    InutNFe.nNumIni := FNumeroInicial;
+    InutNFe.nNumFin := FNumeroFinal;
     InutNFe.xJust  := FJustificativa;
     InutNFe.Versao := FPVersaoServico;
 
@@ -2793,9 +2800,9 @@ end;
 
 function TNFeInutilizacao.TratarResposta: Boolean;
 var
-  NFeRetorno: TRetInutNFe;
+  NFeRetorno: TRetInutDFe;
 begin
-  NFeRetorno := TRetInutNFe.Create;
+  NFeRetorno := TRetInutDFe.Create('NFe', 'nNFIni', 'nNFFin');
   try
     FPRetWS := SeparaDadosArray(['nfeInutilizacaoNF2Result',
                                  'nfeInutilizacaoNFResult',
@@ -2803,7 +2810,7 @@ begin
 
     VerificarSemResposta;
 
-    NFeRetorno.XmlRetorno := FPRetWS; // ParseText(FPRetWS);
+    NFeRetorno.XmlRetorno := FPRetWS;
     NFeRetorno.LerXml;
 
     Fversao := NFeRetorno.versao;
@@ -3021,8 +3028,7 @@ begin
 
   VerificarSemResposta;
 
-  FRetConsCad.XmlRetorno := FPRetWS; //ParseText(FPRetWS); removido o parser por conta do ACBrDocumentXML que
-                                     //não esta conseguindo ler & precisa ser &amp;
+  FRetConsCad.XmlRetorno := FPRetWS;
   FRetConsCad.LerXml;
 
   Fversao := FRetConsCad.versao;
@@ -3652,7 +3658,17 @@ begin
 
             infEvento.detEvento.indAceitacao := FEvento.Evento[I].InfEvento.detEvento.indAceitacao;
           end;
-        end;
+
+          teVinculoPgto:
+          begin
+            SchemaEventoNFe := schevVincPgto;
+
+            infEvento.detEvento.pgto.idTransacao := FEvento.Evento[I].InfEvento.detEvento.pgto.idTransacao;
+            infEvento.detEvento.pgto.tpMeioPgto := FEvento.Evento[I].InfEvento.detEvento.pgto.tpMeioPgto;
+            infEvento.detEvento.pgto.CNPJReceb := FEvento.Evento[I].InfEvento.detEvento.pgto.CNPJReceb;
+            infEvento.detEvento.pgto.CNPJBasePSP := FEvento.Evento[I].InfEvento.detEvento.pgto.CNPJBasePSP;
+          end;
+       end;
       end;
     end;
     {*)}
@@ -3778,7 +3794,7 @@ begin
 
   VerificarSemResposta;
 
-  EventoRetorno.XmlRetorno := FPRetWS; // ParseText(FPRetWS);
+  EventoRetorno.XmlRetorno := FPRetWS;
   EventoRetorno.LerXml;
 
   FcStat := EventoRetorno.cStat;
@@ -3948,7 +3964,7 @@ begin
 
   VerificarSemResposta;
 
-  FretAdmCSCNFCe.XmlRetorno := FPRetWS; // ParseText(FPRetWS);
+  FretAdmCSCNFCe.XmlRetorno := FPRetWS;
   FretAdmCSCNFCe.LerXml;
 
   FPMsg := FretAdmCSCNFCe.xMotivo;
@@ -4100,9 +4116,6 @@ begin
 
   VerificarSemResposta;
 
-  // Processando em UTF8, para poder gravar arquivo corretamente //
-  //A função UTF8ToNativeString deve ser removida quando for refatorado para usar ACBrXMLDocument
-//  FretDistDFeInt.Leitor.Arquivo := UTF8ToNativeString(ParseText(FPRetWS));
   FretDistDFeInt.XmlRetorno := FPRetWS;
   FretDistDFeInt.LerXml;
 
@@ -4130,15 +4143,15 @@ begin
                       '-procEventoNFe.xml';
       end;
 
-      aPath := GerarPathDistribuicao(FretDistDFeInt.docZip.Items[I]);
-
-      if NaoEstaVazio(NomeArq) then
-        FlistaArqs.Add(aPath + PathDelim + FNomeArq);
-
-      FretDistDFeInt.docZip.Items[I].NomeArq := aPath + PathDelim + FNomeArq;
-
       if (FPConfiguracoesNFe.Arquivos.Salvar) and NaoEstaVazio(NomeArq) then
       begin
+        aPath := GerarPathDistribuicao(FretDistDFeInt.docZip.Items[I]);
+
+        if NaoEstaVazio(NomeArq) then
+          FlistaArqs.Add(aPath + PathDelim + FNomeArq);
+
+        FretDistDFeInt.docZip.Items[I].NomeArq := aPath + PathDelim + FNomeArq;
+
         if FPConfiguracoesNFe.Arquivos.SalvarEvento then
           if (FretDistDFeInt.docZip.Items[I].schema in [schresEvento, schprocEventoNFe]) then
             FPDFeOwner.Gravar(NomeArq, AXML, aPath);

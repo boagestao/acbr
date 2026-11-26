@@ -41,7 +41,7 @@ interface
 uses
   SysUtils, Classes, Forms, DB, DBClient, Graphics,
   ACBrNFe.EnvEvento,
-  ACBrNFe.RetInut, ACBrNFe.Classes, ACBrDFe.Conversao,
+  ACBrDFeComum.RetInut, ACBrNFe.Classes, ACBrDFe.Conversao,
   ACBrDFeReport, ACBrDFeDANFeReport, ACBrNFeDANFEClass,
   frxClass, frxExportPDF, frxDBSet, frxBarcode,
   ACBrUtil.FR;
@@ -90,7 +90,7 @@ type
     FfrxInformacoesAdicionais: TfrxDBDataset;
     cdsPagamento: TClientDataSet;
     FfrxPagamento: TfrxDBDataset;
-    FInutilizacao: TRetInutNFe;
+    FInutilizacao: TRetInutDFe;
     FfrxInutilizacao: TfrxDBDataset;
     cdsInutilizacao: TClientDataSet;
 
@@ -108,6 +108,7 @@ type
     FIncorporarBackgroundPdf: Boolean;
     FOtimizaImpressaoPdf: Boolean;
     FThreadSafe: Boolean;
+    FExibeEAN: Boolean;
 
     procedure frxReportBeforePrint(Sender: TfrxReportComponent);
     procedure frxReportPreview(Sender: TObject);
@@ -138,7 +139,7 @@ type
 
     property NFe: TNFe read FNFe write FNFe;
     property Evento: TEventoNFe read FEvento write FEvento;
-    property Inutilizacao: TRetInutNFe read FInutilizacao write FInutilizacao;
+    property Inutilizacao: TRetInutDFe read FInutilizacao write FInutilizacao;
     property DANFEClassOwner: TACBrDFeDANFeReport read FDANFEClassOwner;
     property frxReport: TfrxReport read FfrxReport;
     property frxPDFExport: TfrxPDFExport read FfrxPDFExport;
@@ -151,6 +152,7 @@ type
     property FastFile: String read FFastFile write FFastFile;
     property FastFileEvento: String read FFastFileEvento write FFastFileEvento;
     property FastFileInutilizacao: String read FFastFileInutilizacao write FFastFileInutilizacao;
+    property ExibeEAN: Boolean read FExibeEAN write FExibeEAN default False;
 
     property PrintMode: TfrxPrintMode read FPrintMode write FPrintMode default pmDefault;
     property PrintOnSheet: Integer read FPrintOnSheet write FPrintOnSheet default 0;
@@ -202,6 +204,7 @@ begin
 
   FThreadSafe := False;
   FFastFile := '';
+  FExibeEAN := False;
   FExibeCaptionButton := False;
   FZoomModePadrao := ZMDEFAULT;
   {$IFNDEF FMX}
@@ -438,6 +441,7 @@ begin
         FieldDefs.Add('vBCIS'      , ftString, 18);
         FieldDefs.Add('pIS'        , ftString, 18);
         FieldDefs.Add('vIS'        , ftString, 18);
+        FieldDefs.Add('DescricaoProdutoRTC', ftString, 10000);
 
         CreateDataSet;
      end;
@@ -1063,6 +1067,7 @@ end;
 procedure TACBrNFeFRClass.CarregaDadosProdutos;
 var
   inItem : Integer;
+  LDescricao, LEAN: String;
 
   // NT 2026.010 - item 4.3: quando o grupo gRed for informado (redução de alíquota
   // ou compra governamental), imprime a alíquota efetiva (pAliqEfet)
@@ -1196,6 +1201,11 @@ begin
         FieldByName('nItemPed').AsString          := Prod.nItemPed;
 
         // NT 2026.010 - DANFE Reforma Tributária
+        LDescricao := FDANFEClassOwner.ManterXProd(FNFe, inItem);
+        LEAN := Trim(Prod.cEAN);
+        if FExibeEAN and (LEAN <> '') and (LEAN <> 'SEM GTIN') then
+          LDescricao := LEAN + ' - ' + LDescricao;
+        FieldByName('DescricaoProdutoRTC').AsString := FDANFEClassOwner.ManterCodigoXProd(Prod.cProd, LDescricao);
         FieldByName('vBCIPI').AsString     := FormatFloatBr( Imposto.IPI.vBC, ',0.00');
         FieldByName('cClassTrib').AsString := Imposto.IBSCBS.cClassTrib;
         with Imposto.IBSCBS.gIBSCBS do
@@ -2140,8 +2150,8 @@ begin
          FieldByName('Modelo').AsInteger    := Modelo;
          FieldByName('Serie').AsInteger     := Serie;
          FieldByName('Ano').AsInteger       := Ano;
-         FieldByName('nNFIni').AsInteger    := nNFIni;
-         FieldByName('nNFFin').AsInteger    := nNFFin;
+         FieldByName('nNFIni').AsInteger    := nNumIni;
+         FieldByName('nNFFin').AsInteger    := nNumFin;
          FieldByName('xJust').AsString      := xJust;
          FieldByName('versao').AsString     := versao;
          FieldByName('verAplic').AsString   := verAplic;
@@ -2394,7 +2404,7 @@ begin
   begin
     if Assigned(TACBrNFe(DANFEClassOwner.ACBrNFe).InutNFe) then
     begin
-      Inutilizacao := TACBrNFe(DANFEClassOwner.ACBrNFe).InutNFe.RetInutNFe;
+      Inutilizacao := TACBrNFe(DANFEClassOwner.ACBrNFe).InutNFe.RetInutDFe;
       CarregaDadosInutilizacao;
     end
     else

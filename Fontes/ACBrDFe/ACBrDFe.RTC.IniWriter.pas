@@ -50,6 +50,8 @@ type
   private
     FtpNFDebito: TtpNFDebito;
     FModelosDFe: TModelosDFe;
+    FpRedutor: Double;
+    FtpEnteGov: TtpEnteGov;
 
   public
     // Usado pela maioria dos DF-e
@@ -73,6 +75,10 @@ type
     procedure Gerar_gIBSCBS(AINIRec: TMemIniFile; gIBSCBS: TgIBSCBS; Idx1, Idx2: Integer);
     procedure Gerar_gIBSCBSNFeABI(AINIRec: TMemIniFile; gIBSCBS: TgIBSCBS; Idx1, Idx2: Integer);
 
+    procedure Gerar_gTribSN(AINIRec: TMemIniFile; gTribSN: TTribSN; Idx1, Idx2: Integer);
+    procedure Gerar_gIBSSN(AINIRec: TMemIniFile; gIBSSN: TgIBSSN; Idx1, Idx2: Integer);
+    procedure Gerar_gCBSSN(AINIRec: TMemIniFile; gCBSSN: TgCBSSN; Idx1, Idx2: Integer);
+
     procedure Gerar_gIBSUF(AINIRec: TMemIniFile; gIBSUF: TgIBSUFValores; Idx1, Idx2: Integer);
     procedure Gerar_gIBSMun(AINIRec: TMemIniFile; gIBSMun: TgIBSMunValores; Idx1, Idx2: Integer);
     procedure Gerar_gCBS(AINIRec: TMemIniFile; gCBS: TgCBSValores; Idx1, Idx2: Integer);
@@ -93,6 +99,7 @@ type
     procedure Gerar_gIBSMunTot(AINIRec: TMemIniFile; gIBSMunTot: TgIBSMunTot);
     procedure Gerar_gCBSTot(AINIRec: TMemIniFile; gCBS: TgCBS);
     procedure Gerar_gEstornoCredTot(AINIRec: TMemIniFile; gEstornoCred: TgEstornoCred);
+    procedure Gerar_gTribSNTot(AINIRec: TMemIniFile; gTribSN: TgTribSN);
 
     procedure Gerar_pgtoVinc(AINIRec: TMemIniFile; pgto: TpgtoCollection);
 
@@ -163,7 +170,10 @@ var
 begin
   sSecao := 'gCompraGov';
 
-  if (gCompraGov.pRedutor > 0) then
+  FpRedutor := gCompraGov.pRedutor;
+  FtpEnteGov := gCompraGov.tpEnteGov;
+
+  if (FpRedutor > 0) then
   begin
     AINIRec.WriteString(sSecao, 'tpEnteGov', tpEnteGovToStr(gCompraGov.tpEnteGov));
     AINIRec.WriteFloat(sSecao, 'pRedutor', gCompraGov.pRedutor);
@@ -223,7 +233,7 @@ procedure TDFeRTCIniWriter.Gerar_IBSCBS(AINIRec: TMemIniFile; IBSCBS: TIBSCBS; I
 var
   sSecao: string;
 begin
-  if (IBSCBS.gIBSCBS.vBC > 0) then
+  if (IBSCBS.CST <> cstNenhum) and (IBSCBS.cClassTrib <> '') then
   begin
     if Idx1 = -1 then
       sSecao := 'IBSCBS'
@@ -261,18 +271,22 @@ begin
       mdfNFGas:
         Gerar_IBSCBSNFGas(AINIRec, IBSCBS, Idx1, Idx2);
     end;
-  end;
 
-  if (IBSCBS.gEstornoCred.vIBSEstCred > 0) or (IBSCBS.gEstornoCred.vCBSEstCred > 0) or
-     ((ModelosDFe = mdfNFe) and (tpNFDebito = tdPerdaEmEstoque)) then
-    Gerar_gEstornoCred(AINIRec, IBSCBS.gEstornoCred, Idx1, Idx2);
+    if ModelosDFe in [mdfBPe, mdfBPeTM, mdfBPeTA, mdfCTe, mdfCTeOS, mdfCTeSimp,
+                      mdfGTVe, mdfNFAg, mdfNFCom, mdfNFe, mdfNFCe] then
+      Gerar_gTribSN(AINIRec, IBSCBS.gTribSN, Idx1, Idx2);
 
-  if ModelosDFe = mdfNFe then
-  begin
-    if (IBSCBS.gCredPresOper.cCredPres <> cpNenhum) then
-      Gerar_gCredPresOper(AINIRec, IBSCBS.gCredPresOper, Idx1)
-    else if (IBSCBS.gCredPresIBSZFM.tpCredPresIBSZFM <> tcpNenhum) then
-      Gerar_gCredPresIBSZFM(AINIRec, IBSCBS.gCredPresIBSZFM, Idx1);
+    if (IBSCBS.gEstornoCred.vIBSEstCred > 0) or (IBSCBS.gEstornoCred.vCBSEstCred > 0) or
+       ((ModelosDFe = mdfNFe) and (tpNFDebito = tdPerdaEmEstoque)) then
+      Gerar_gEstornoCred(AINIRec, IBSCBS.gEstornoCred, Idx1, Idx2);
+
+    if ModelosDFe = mdfNFe then
+    begin
+      if (IBSCBS.gCredPresOper.cCredPres <> cpNenhum) then
+        Gerar_gCredPresOper(AINIRec, IBSCBS.gCredPresOper, Idx1)
+      else if (IBSCBS.gCredPresIBSZFM.tpCredPresIBSZFM <> tcpNenhum) then
+        Gerar_gCredPresIBSZFM(AINIRec, IBSCBS.gCredPresIBSZFM, Idx1);
+    end;
   end;
 end;
 
@@ -406,7 +420,7 @@ begin
   if gIBSCBS.gTribRegular.vTribRegIBSUF > 0 then
     Gerar_gTribRegular(AINIRec, gIBSCBS.gTribRegular, Idx1, Idx2);
 
-  if gIBSCBS.gTribCompraGov.pAliqIBSUF > 0 then
+  if (FpRedutor > 0) and (FtpEnteGov <> tcgNenhum) then
     Gerar_gTribCompraGov(AINIRec, gIBSCBS.gTribCompraGov, Idx1, Idx2);
 end;
 
@@ -438,6 +452,55 @@ begin
 
   if gIBSCBS.gTribCompraGov.pAliqIBSUF > 0 then
     Gerar_gTribCompraGov(AINIRec, gIBSCBS.gTribCompraGov, Idx1, Idx2);
+end;
+
+procedure TDFeRTCIniWriter.Gerar_gTribSN(AINIRec: TMemIniFile; gTribSN: TTribSN;
+  Idx1, Idx2: Integer);
+begin
+  if (gTribSN.gIBSSN.pIBSSN > 0) or (gTribSN.gIBSSN.vIBSSN > 0) or
+     (gTribSN.gCBSSN.pCBSSN > 0) or (gTribSN.gCBSSN.vCBSSN > 0) then
+  begin
+    Gerar_gIBSSN(AINIRec, gTribSN.gIBSSN, Idx1, Idx2);
+    Gerar_gCBSSN(AINIRec, gTribSN.gCBSSN, Idx1, Idx2);
+  end;
+end;
+
+procedure TDFeRTCIniWriter.Gerar_gIBSSN(AINIRec: TMemIniFile; gIBSSN: TgIBSSN;
+  Idx1, Idx2: Integer);
+var
+  sSecao: string;
+begin
+  if Idx1 = -1 then
+    sSecao := 'gIBSSN'
+  else
+  begin
+    if Idx2 = -1 then
+      sSecao := 'gIBSSN' + IntToStrZero(Idx1 + 1, 3)
+    else
+      sSecao := 'gIBSSN' + IntToStrZero(Idx1 + 1, 2) + IntToStrZero(Idx2 + 1, 3);
+  end;
+
+  AINIRec.WriteFloat(sSecao, 'pIBSSN', gIBSSN.pIBSSN);
+  AINIRec.WriteFloat(sSecao, 'vIBSSN', gIBSSN.vIBSSN);
+end;
+
+procedure TDFeRTCIniWriter.Gerar_gCBSSN(AINIRec: TMemIniFile; gCBSSN: TgCBSSN;
+  Idx1, Idx2: Integer);
+var
+  sSecao: string;
+begin
+  if Idx1 = -1 then
+    sSecao := 'gCBSSN'
+  else
+  begin
+    if Idx2 = -1 then
+      sSecao := 'gCBSSN' + IntToStrZero(Idx1 + 1, 3)
+    else
+      sSecao := 'gCBSSN' + IntToStrZero(Idx1 + 1, 2) + IntToStrZero(Idx2 + 1, 3);
+  end;
+
+  AINIRec.WriteFloat(sSecao, 'pCBSSN', gCBSSN.pCBSSN);
+  AINIRec.WriteFloat(sSecao, 'vCBSSN', gCBSSN.vCBSSN);
 end;
 
 procedure TDFeRTCIniWriter.Gerar_gIBSUF(AINIRec: TMemIniFile;
@@ -625,8 +688,12 @@ begin
       sSecao := 'gALCZFMCBS' + IntToStrZero(Idx1 + 1, 2) + IntToStrZero(Idx2 + 1, 3);
   end;
 
-  AINIRec.WriteString(sSecao, 'tpALCZFMCBS', tpALCZFMCBSToStr(gALCZFMCBS.tpALCZFMCBS) );
-  AINIRec.WriteString(sSecao, 'nProcSuframa', gALCZFMCBS.nProcSuframa);
+  if ModelosDFe in [mdfNFe, mdfNFCe, mdfNFeABI] then
+  begin
+    AINIRec.WriteString(sSecao, 'tpALCZFMCBS', tpALCZFMCBSToStr(gALCZFMCBS.tpALCZFMCBS));
+    AINIRec.WriteString(sSecao, 'nProcSuframa', gALCZFMCBS.nProcSuframa);
+  end;
+
   AINIRec.WriteFloat( sSecao, 'pAliqEfetRegCBS', gALCZFMCBS.pAliqEfetRegCBS);
   AINIRec.WriteFloat( sSecao, 'vTribRegCBS', gALCZFMCBS.vTribRegCBS);
 end;
@@ -641,6 +708,7 @@ begin
 
   Gerar_gIBSTot(AINIRec, IBSCBSTot.gIBS);
   Gerar_gCBSTot(AINIRec, IBSCBSTot.gCBS);
+  Gerar_gTribSNTot(AINIRec, IBSCBSTot.gTribSN);
   Gerar_gEstornoCredTot(AINIRec, IBSCBSTot.gEstornoCred);
 end;
 
@@ -704,6 +772,20 @@ begin
 
   AINIRec.WriteFloat(sSecao, 'vIBSEstCred', gEstornoCred.vIBSEstCred);
   AINIRec.WriteFloat(sSecao, 'vCBSEstCred', gEstornoCred.vCBSEstCred);
+end;
+
+procedure TDFeRTCIniWriter.Gerar_gTribSNTot(AINIRec: TMemIniFile;
+  gTribSN: TgTribSN);
+var
+  sSecao: string;
+begin
+  if (gTribSN.vIBSSN > 0) or (gTribSN.vCBSSN > 0) then
+  begin
+    sSecao := 'gTribSNTot';
+
+    AINIRec.WriteFloat(sSecao, 'vIBSSN', gTribSN.vIBSSN);
+    AINIRec.WriteFloat(sSecao, 'vCBSSN', gTribSN.vCBSSN);
+  end;
 end;
 
 procedure TDFeRTCIniWriter.Gerar_pgtoVinc(AINIRec: TMemIniFile;

@@ -503,6 +503,8 @@ type
 
 const
   TtribISSQNArrayStrings: array[TtribISSQN] of string = ('1', '2', '3', '4');
+  TtribISSQNArrayDescricaoStrings: array[TtribISSQN] of string =
+    ('Operação Tributável', 'Imunidade', 'Exportação', 'Não Incidência');
 
 type
   TtpImunidade = (timNenhum, timImunidade, timPatrimonio, timTemplos,
@@ -642,10 +644,10 @@ const
   TLayoutNFSeArrayStrings: array[TLayoutNFSe] of string = ('0', '1', '2');
 
 type
-  TNaoNIF = (tnnNaoInformado, tnnDispensado, tnnNaoExigencia);
+  TNaoNIF = (tnnNaoInformado, tnnDispensado, tnnNaoExigencia, tnnNenhum);
 
 const
-  TNaoNIFArrayStrings: array[TNaoNIF] of string = ('0', '1', '2');
+  TNaoNIFArrayStrings: array[TNaoNIF] of string = ('0', '1', '2', '');
 
 type
   TLocalPrestacao = (lpMunicipio, lpForaMunicipio);
@@ -721,6 +723,21 @@ type
 const
   TtpReeRepResArrayStrings: array[TtpReeRepRes] of string = ('01', '02', '03',
     '04', '99');
+
+type
+  TtpAjusteBCLocImoveis = (tabl01, tabl02, tabl03, tabl04, tabl99);
+
+const
+  TtpAjusteBCLocImoveisArrayStrings: array[TtpAjusteBCLocImoveis] of string = ('01',
+    '02', '03', '04', '99');
+
+type
+  TtpAjusteBC = (tajbc2, tajbc5, tajbc6, tajbc7, tajbc8, tajbc9, tajbc99,
+    tajbc101, tajbc102, tajbc103, tajbc104, tajbc105, tajbc199);
+
+const
+  TtpAjusteBCArrayStrings: array[TtpAjusteBC] of string = ('2', '5', '6', '7',
+    '8', '9', '99', '101', '102', '103', '104', '105', '199');
 
 type
   TindCompGov  = (icgNenhum, icgSim, icgNao);
@@ -871,6 +888,7 @@ function StrTorodagem(out ok: Boolean; const s: string): Trodagem;
 
 function tribISSQNToStr(const t: TtribISSQN): string;
 function StrTotribISSQN(out ok: Boolean; const s: string): TtribISSQN;
+function tribISSQNToDescricao(const t: TtribISSQN): string;
 
 function tpImunidadeToStr(const t: TtpImunidade): string;
 function StrTotpImunidade(out ok: Boolean; const s: string): TtpImunidade;
@@ -965,6 +983,12 @@ function StrTotipoChaveDFe(const s: string): TtipoChaveDFe;
 
 function tpReeRepResToStr(const t: TtpReeRepRes): string;
 function StrTotpReeRepRes(const s: string): TtpReeRepRes;
+
+function tpAjusteBCLocImoveisToStr(const t: TtpAjusteBCLocImoveis): string;
+function StrTotpAjusteBCLocImoveis(const s: string): TtpAjusteBCLocImoveis;
+
+function tpAjusteBCToStr(const t: TtpAjusteBC): string;
+function StrTotpAjusteBC(const s: string): TtpAjusteBC;
 
 function indCompGovToStr(const t: TindCompGov): string;
 function StrToindCompGov(const s: string): TindCompGov;
@@ -13608,6 +13632,11 @@ begin
             [tiOperacaoTributavel, tiImunidade, tiExportacao, tiNaoIncidencia]);
 end;
 
+function tribISSQNToDescricao(const t: TtribISSQN): string;
+begin
+  Result := TtribISSQNArrayDescricaoStrings[t];
+end;
+
 function tpImunidadeToStr(const t: TtpImunidade): string;
 begin
   result := EnumeradoToStr(t,
@@ -13930,14 +13959,16 @@ end;
 function StrToNaoNIF(out ok: boolean; const s: string): TNaoNIF;
 begin
   Result := StrToEnumerado(OK, s,
-                           ['0', '1', '2'],
-                           [tnnNaoInformado, tnnDispensado, tnnNaoExigencia]);
+                           ['0', '1', '2', ''],
+                           [tnnNaoInformado, tnnDispensado, tnnNaoExigencia,
+                            tnnNenhum]);
 end;
 
 function NaoNIFToStr(const t: TNaoNIF): string;
 begin
-  Result := EnumeradoToStr(t, ['0', '1', '2'],
-                           [tnnNaoInformado, tnnDispensado, tnnNaoExigencia]);
+  Result := EnumeradoToStr(t, ['0', '1', '2', ''],
+                           [tnnNaoInformado, tnnDispensado, tnnNaoExigencia,
+                            tnnNenhum]);
 end;
 
 function CodIBGEPaisToSiglaISO2(t: Integer): string;
@@ -14286,6 +14317,46 @@ begin
     end;
   end;
   raise EACBrException.CreateFmt('Valor string inválido para TtpReeRepRes: %s', [s]);
+end;
+
+function tpAjusteBCLocImoveisToStr(const t: TtpAjusteBCLocImoveis): string;
+begin
+  Result := TtpAjusteBCLocImoveisArrayStrings[t];
+end;
+
+function StrTotpAjusteBCLocImoveis(const s: string): TtpAjusteBCLocImoveis;
+var
+  idx: TtpAjusteBCLocImoveis;
+begin
+  for idx:= Low(TtpAjusteBCLocImoveisArrayStrings) to High(TtpAjusteBCLocImoveisArrayStrings) do
+  begin
+    if (TtpAjusteBCLocImoveisArrayStrings[idx] = s) then
+    begin
+      Result := idx;
+      exit;
+    end;
+  end;
+  raise EACBrException.CreateFmt('Valor string invalido para TtpAjusteBCLocImoveis: %s', [s]);
+end;
+
+function tpAjusteBCToStr(const t: TtpAjusteBC): string;
+begin
+  Result := TtpAjusteBCArrayStrings[t];
+end;
+
+function StrTotpAjusteBC(const s: string): TtpAjusteBC;
+var
+  idx: TtpAjusteBC;
+begin
+  for idx:= Low(TtpAjusteBCArrayStrings) to High(TtpAjusteBCArrayStrings) do
+  begin
+    if (TtpAjusteBCArrayStrings[idx] = s) then
+    begin
+      Result := idx;
+      exit;
+    end;
+  end;
+  raise EACBrException.CreateFmt('Valor string invalido para TtpAjusteBC: %s', [s]);
 end;
 
 function indCompGovToStr(const t: TindCompGov): string;
