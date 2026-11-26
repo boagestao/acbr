@@ -9,6 +9,7 @@ Fontes e schemas do [Projeto ACBr](https://projetoacbr.com.br/) (SVN `trunk2`), 
 Ajustes locais, aplicados pelo `atualiza.sh`:
 
 - o DANFE da NF-e (`ACBrNFeDANFeFPDF.pas` e o leiaute da Reforma Tributária, NT 2026.010, em `ACBrNFeDANFeFPDFRTC.pas`) e o da NFC-e (`ACBrNFCeDANFeFPDF.pas`) usam Arial no lugar de Times.
+- no DANFE da Reforma Tributária (`ACBrNFeDANFeFPDFRTC.pas`), a caixa da chave de acesso e o valor de cada campo reduzem a fonte até caber (em retrato, a chave perdia os últimos dígitos com Arial, e nome, endereço, bairro e município longos perdiam o fim, com Arial ou Times), e o quadro de faturas, que imprime no máximo 24 duplicatas, avisa no título quando há mais ("FATURA / DUPLICATAS (24 DE n - DEMAIS NO XML)"). O script falha se não achar os trechos: nesse caso, conferir se o ACBr mudou ou corrigiu o leiaute e rever os ajustes.
 
 ## Uso no monorepo
 

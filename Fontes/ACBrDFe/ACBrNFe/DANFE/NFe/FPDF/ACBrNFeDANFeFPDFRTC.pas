@@ -340,7 +340,7 @@ begin
   APDF.TextBox(AX + 0.5, AY + AReport.MargemRotulo, AW - 1, 3, ARotulo, 'T', 'L', False, False, False);
   APDF.SetFont(AReport.FonteValor, AEstilo);
   APDF.TextBox(AX + 0.5, AY + AReport.DeslocamentoValor, AW - 1, AH, AValor, 'B', AAlinhamento,
-    False, False, False);
+    False, False, True);
 end;
 
 function AlturaLinhaTexto(const APDF: IFPDF; ATamanho: Double): Double;
@@ -718,7 +718,7 @@ begin
   APDF.TextBox(AX + 0.5, LY + 0.2, AW - 1, 3, 'CHAVE DE ACESSO', 'T', 'L', False, False, False);
   APDF.SetFont(9, 'B');
   APDF.TextBox(AX + 1, LY + (3 * LK), AW - 2, 4, FormatarChaveAcesso(NFe.infNFe.ID), 'T', 'C',
-    False, False, False);
+    False, False, True);
 
   LY := AY + (22 * LK);
   APDF.Line(AX, LY, AX + AW, LY);
@@ -986,7 +986,11 @@ var
 begin
   LPDF := Args.PDF;
 
-  Titulo(LPDF, 0, 1, Width, 'FATURA / DUPLICATAS');
+  if NFe.Cobr.Dup.Count > FLinhas * cDuplicatasPorLinha then
+    Titulo(LPDF, 0, 1, Width, 'FATURA / DUPLICATAS (' + IntToStr(FLinhas * cDuplicatasPorLinha) + ' DE ' +
+      IntToStr(NFe.Cobr.Dup.Count) + ' - DEMAIS NO XML)')
+  else
+    Titulo(LPDF, 0, 1, Width, 'FATURA / DUPLICATAS');
 
   LWGrupo := Width / cDuplicatasPorLinha;
   LQuantidade := Min(NFe.Cobr.Dup.Count, FLinhas * cDuplicatasPorLinha);
