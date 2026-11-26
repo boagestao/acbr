@@ -8,8 +8,7 @@ Fontes e schemas do [Projeto ACBr](https://projetoacbr.com.br/) (SVN `trunk2`), 
 
 Ajustes locais, aplicados pelo `atualiza.sh`:
 
-- o DANFE da NF-e e da NFC-e (`ACBrNFeDANFeFPDF.pas`, `ACBrNFCeDANFeFPDF.pas`) usa Arial no lugar de Times;
-- a NFS-e do Padrão Nacional (`PadraoNacional.LerXml.pas`) só lê `finNFSe` de `infDPS` quando a tag vem preenchida. Desde a r48805 (ACBR-9969) a leitura sem a tag, comum no layout anterior à NT 009 v1.01, gerava `Valor string inválido para TfinNFSe` depois da nota autorizada. O script falha se o trecho original não for encontrado: nesse caso, conferir se o ACBr corrigiu a leitura e remover o ajuste.
+- o DANFE da NF-e (`ACBrNFeDANFeFPDF.pas` e o leiaute da Reforma Tributária, NT 2026.010, em `ACBrNFeDANFeFPDFRTC.pas`) e o da NFC-e (`ACBrNFCeDANFeFPDF.pas`) usam Arial no lugar de Times.
 
 ## Uso no monorepo
 
